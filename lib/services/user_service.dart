@@ -19,6 +19,16 @@ class UserService extends GetxService {
   Rxn<User> firebaseUser = Rxn<User>();
   Rxn<UserModel> firestroreUser = Rxn<UserModel>();
 
+  List<double> get getFaceEmbedding {
+    final List<dynamic>? embedding = firestroreUser.value?.faceEmbedding;
+
+    if (embedding == null) {
+      return [];
+    }
+
+    return embedding.map((e) => e as double).toList(); 
+  }
+
   @override
   void onReady() {
     super.onReady();

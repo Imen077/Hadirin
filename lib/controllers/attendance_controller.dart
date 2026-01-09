@@ -1,14 +1,16 @@
 import 'dart:developer';
 import 'dart:io';
 import 'package:camera/camera.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'package:hadirin/services/cloudinary_service.dart';
+// import 'package:hadirin/services/cloudinary_service.dart';
 import 'package:hadirin/services/face_recognition_service.dart';
+import 'package:hadirin/services/target_location_service.dart';
 import 'package:hadirin/services/user_service.dart';
 import 'package:hadirin/utils/helper.dart';
 
-class EnrollController extends GetxController {
+class AttendanceController extends GetxController {
   // Camera
   late final CameraController cameraController;
   late List<CameraDescription> _cameras;
@@ -27,8 +29,10 @@ class EnrollController extends GetxController {
   // Services
   final FaceRecognitionService _faceRecognitionService =
       Get.find<FaceRecognitionService>();
-  final CloudinaryService _cloudinaryService = Get.find<CloudinaryService>();
+  // final CloudinaryService _cloudinaryService = Get.find<CloudinaryService>();
   final UserService _userService = Get.find<UserService>();
+  final TargetLocationService _targetLocationService =
+      Get.find<TargetLocationService>();
 
   @override
   void onInit() {
@@ -65,13 +69,31 @@ class EnrollController extends GetxController {
     }
   }
 
-  Future<void> captureAndEnrollFace() async {
+  Future<void> capture() async {
     // 1. Check Camera Intialized
     if (!isCameraInitialized.value) return;
 
     isProcessing(true);
-    feedbackMessage('Processing...');
     try {
+      feedbackMessage('Getting location...');
+
+      /// get location data (Lat, Long)
+      final position = await Geolocator.getCurrentPosition();
+
+      final double locationDistance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        _targetLocationService.targetLocation.value!.coords.latitude,
+        _targetLocationService.targetLocation.value!.coords.longitude,
+      );
+
+      if (locationDistance >
+          _targetLocationService.targetLocation.value!.radius) {
+        throw Exception('You are not in the target location. Please try again');
+      }
+
+      feedbackMessage('location verified');
+
       // 2. Capture Image
       final XFile imageXFile = await cameraController.takePicture();
       final File imageFile = File(imageXFile.path);
@@ -93,20 +115,24 @@ class EnrollController extends GetxController {
 
       // 4. Get Embedding
       feedbackMessage('Getting embedding...');
-      final List<double> embedding = _faceRecognitionService.getEmbedding(
+      final List<double> newEmbedding = _faceRecognitionService.getEmbedding(
         imageFile,
         face,
       );
 
-      if (embedding.isEmpty) {
+      if (newEmbedding.isEmpty) {
         throw Exception('Failed to get embedding. Please try again.');
       }
-      // 5. Upload to Cloudinary
-      final String imageUrl = await _cloudinaryService.uploadeImage(imageFile);
 
-      // 6. Save Embedding & URL Image to User Doc
-      feedbackMessage('Saving Face Data...');
-      await _userService.saveEmbedding(embedding, imageUrl);
+      /// get saved embedding dari User
+      final List<double> savedEmbedding = _userService.getFaceEmbedding;
+
+      if (savedEmbedding.isEmpty) {
+        throw Exception('Failed to get saved embedding. Please try again.');
+      }
+
+      /// Compare
+      /// Create
     } catch (e) {
       log(e.toString());
       Helper.showError(e.toString().replaceAll('Exception: ', ''));

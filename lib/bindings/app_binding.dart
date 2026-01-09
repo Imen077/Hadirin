@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:hadirin/services/cloudinary_service.dart';
 import 'package:hadirin/services/face_recognition_service.dart';
 import 'package:hadirin/services/permission_service.dart';
+import 'package:hadirin/services/target_location_service.dart';
 import 'package:hadirin/services/user_service.dart';
 
 class AppBinding extends Bindings {
@@ -11,5 +12,6 @@ class AppBinding extends Bindings {
     Get.put(UserService(), permanent: true);
     Get.put(FaceRecognitionService(), permanent: true);
     Get.put(CloudinaryService(), permanent: true);
+    Get.put(TargetLocationService(), permanent: true);
   }
 }
